@@ -32,8 +32,8 @@
             {% for id, title, sql in queries %}
             <section id="{{ id }}" class="space-y-4">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-indigo-400 font-semibold text-lg">-- {{ title }}</h2>
-                    <a href="/query/{{ id }}#{{ id }}" class="bg-[#238636] hover:bg-[#2ea043] text-white px-6 py-2 rounded-md font-bold text-sm transition shadow-sm">Run Query</a>
+                    <h2 class="text-indigo-400 font-semibold text-lg">{{ title }}</h2>
+                    <a href="/query/{{ id }}#{{ id }}" class="bg-[#238636] hover:bg-[#2ea043] text-white px-6 py-2 rounded-md font-bold text-sm transition shadow-sm">Executer</a>
                 </div>
                 
                 <div class="sql-container p-6 rounded-md shadow-inner">
