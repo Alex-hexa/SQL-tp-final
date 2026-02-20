@@ -6,74 +6,122 @@
     <title>LeMauvaisCoin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .sql-container { background-color: #ffffff; border: 1px solid #d1d5da; }
-        .sql-syntax { color: #24292e; font-family: 'ui-monospace', monospace; line-height: 1.5; }
-        .result-table { background-color: #ffffff; border: 1px solid #e1e4e8; border-collapse: collapse; }
-        .result-thead { background-color: #f6f8fa; color: #24292e; border-bottom: 2px solid #e1e4e8; }
-        section { scroll-margin-top: 2rem; }
+        .brand-color { color: #ff6e14; }
+        .bg-brand { background-color: #ff6e14; }
+        .hover-bg-brand:hover { background-color: #e55a00; }
     </style>
 </head>
-<body class="bg-[#0d1117] text-slate-300 p-8">
+<body class="bg-gray-100 font-sans text-gray-800">
 
-    <div class="max-w-6xl mx-auto">
-        <h1 class="text-2xl font-bold mb-10 text-indigo-400 border-b border-slate-800 pb-4">LeMauvaisCoin</h1>
-
-        <div class="space-y-16">
-            {% set queries = [
-                ('ca_user', "Chiffre d'Affaires (CA) par utilisateur", "SELECT u.firstname, u.lastname, SUM(sa.price) AS chiffre_affaires\nFROM \"user\" u\nJOIN sale_ad sa ON u.id = sa.user_id\nJOIN command_product cp ON sa.id = cp.sale_ad_id\nGROUP BY u.id, u.firstname, u.lastname\nORDER BY chiffre_affaires DESC;"),
-                ('details', "Détails des annonces", "SELECT \n    sa.title AS annonce, \n    p.name AS produit, \n    c.name AS categorie, \n    sa.price, \n    u.firstname || ' ' || u.lastname AS vendeur, \n    COUNT(pi.id) AS nb_photo\nFROM sale_ad sa\nINNER JOIN product p ON sa.product_id = p.id\nINNER JOIN category c ON p.category_id = c.id\nINNER JOIN \"user\" u ON sa.user_id = u.id\nLEFT JOIN picture pi ON pi.sale_ad_id = sa.id\nGROUP BY \n    sa.id,\n    sa.title,\n    p.name,\n    c.name,\n    sa.price,\n    u.firstname,\n    u.lastname;"),
-                ('orphelins', "Identifier les produits sans annonce", "SELECT p.name AS produit_orphelin\nFROM product p\nLEFT JOIN sale_ad sa ON p.id = sa.product_id\nWHERE sa.id IS NULL;"),
-                ('count_cat', "Nombre d'annonces par catégorie", "SELECT c.name AS categorie, COUNT (sa.id) AS nombre_annonces\nFROM category c\nJOIN product p ON c.id = p.category_id\nJOIN sale_ad sa ON p.id = sa.product_id\nGROUP BY c.name;"),
-                ('multi_role', "Utilisateurs ayant plus d'un rôle", "SELECT u.firstname, u.lastname, COUNT(ut.type_id) AS nb_roles\nFROM \"user\" u\nJOIN user_type ut ON u.id = ut.user_id\nGROUP BY u.id, u.firstname, u.lastname\nHAVING COUNT(ut.type_id) > 1;"),
-                ('performance', "Analyse de la Performance", "SELECT c.name AS categorie, COUNT(DISTINCT sa.id) AS nombre_annonces,\nCOUNT(cp.sale_ad_id) AS nombre_ventes,\nROUND ((COUNT (cp.sale_ad_id)::numeric / NULLIF(COUNT(DISTINCT sa.id), 0)) * 100, 2) || '%' AS taux_conversion,\nSUM(sa.price) AS ca_total\nFROM category c\nLEFT JOIN product p ON c.id = p.category_id\nLEFT JOIN sale_ad sa ON p.id = sa.product_id\nLEFT JOIN command_product cp ON sa.id = cp.sale_ad_id\nGROUP BY c.id, c.name\nORDER BY ca_total DESC;"),
-                ('best_seller', "Le Produit le plus vendu (Volume)", "SELECT p.name AS nom_produit, cat.name AS categorie, COUNT(cp.sale_ad_id) AS nombre_de_ventes\nFROM product p\nJOIN category cat ON p.category_id = cat.id\nJOIN sale_ad sa ON p.id = sa.product_id\nJOIN command_product cp ON sa.id = cp.sale_ad_id\nGROUP BY p.id, p.name, cat.name\nORDER BY nombre_de_ventes DESC\nLIMIT 1;")
-            ] %}
-
-            {% for id, title, sql in queries %}
-            <section id="{{ id }}" class="space-y-4">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-indigo-400 font-semibold text-lg">{{ title }}</h2>
-                    <a href="/query/{{ id }}#{{ id }}" class="bg-[#238636] hover:bg-[#2ea043] text-white px-6 py-2 rounded-md font-bold text-sm transition shadow-sm">Executer</a>
-                </div>
-                
-                <div class="sql-container p-6 rounded-md shadow-inner">
-                    <pre class="sql-syntax whitespace-pre-wrap text-sm">{{ sql }}</pre>
-                </div>
-
-                {% if active_query == id %}
-                <div class="mt-6 overflow-hidden rounded-md shadow-2xl">
-                    <table class="w-full text-left text-sm result-table">
-                        <thead class="result-thead font-mono uppercase text-xs">
-                            <tr>
-                                {% if result and result|length > 0 %}
-                                    {% for key in result[0].keys() %}
-                                        <th class="px-5 py-3 border-r border-slate-200 tracking-wider">{{ key }}</th>
-                                    {% endfor %}
-                                {% else %}
-                                    <th class="px-5 py-3 tracking-wider">Résultat</th>
-                                {% endif %}
-                            </tr>
-                        </thead>
-                        <tbody class="text-slate-800">
-                            {% for row in result %}
-                            <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors font-mono">
-                                {% for value in row.values() %}
-                                    <td class="px-5 py-3 border-r border-slate-200">
-                                        {{ value if value is not none else 'NULL' }}
-                                    </td>
-                                {% endfor %}
-                            </tr>
-                            {% endfor %}
-                            {% if not result %}
-                            <tr><td class="px-5 py-4 text-center italic text-slate-500">Aucun résultat retourné par la base.</td></tr>
-                            {% endif %}
-                        </tbody>
-                    </table>
-                </div>
-                {% endif %}
-            </section>
-            {% endfor %}
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <a href="/" class="text-3xl font-black brand-color tracking-tighter">leMauvaisCoin</a>
         </div>
-    </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row gap-8">
+        
+        <aside class="w-full md:w-1/4 bg-white p-6 rounded-xl shadow-sm h-fit">
+            <h2 class="text-lg font-bold mb-4 border-b pb-2">Recherche</h2>
+            
+            <form action="/" method="GET" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Que recherchez-vous ?</label>
+                    <input type="text" name="q" value="{{ search_query }}" placeholder="Ex: iPhone 15..." 
+                           class="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-orange-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Catégorie</label>
+                    <select name="category" class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        <option value="">Toutes les catégories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if current_category == cat.id|string %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="flex gap-2">
+                    <div class="w-1/2">
+                        <label class="block text-sm font-semibold mb-1">Prix min (€)</label>
+                        <input type="number" name="min_price" value="{{ min_price }}" class="w-full border border-gray-300 rounded-lg p-2">
+                    </div>
+                    <div class="w-1/2">
+                        <label class="block text-sm font-semibold mb-1">Prix max (€)</label>
+                        <input type="number" name="max_price" value="{{ max_price }}" class="w-full border border-gray-300 rounded-lg p-2">
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full bg-brand hover-bg-brand text-white font-bold py-2 rounded-lg transition mt-4">
+                    Rechercher
+                </button>
+                
+                <a href="/" class="block text-center text-sm hover:underline mt-2">Effacer les filtres</a>
+            </form>
+        </aside>
+
+        <section class="w-full md:w-3/4">
+            
+            <h2 class="text-xl font-bold mb-6">Des millions de petites annonces pas folles (ou presque)</h2>
+
+            {% if ads|length == 0 %}
+            <div class="bg-white p-10 rounded-xl shadow-sm text-center">
+                <p class="text-gray-500 text-lg">Aucune annonce ne correspond à vos critères.</p>
+            </div>
+            {% else %}  
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for ad in ads %}
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition cursor-pointer border border-gray-100 flex flex-col">
+                    
+                    <div class="h-48 relative bg-gray-300 border border-dark">
+                        {% if ad.picture and ad.picture|length > 0 %}
+                            <div class="w-full h-full flex items-center justify-center text-sm">
+                                [Img: {{ ad.picture[0].name }}]
+                            </div>
+                            <span class="absolute bottom-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1">
+                                {{ ad.picture|length }} photo(s)
+                            </span>
+                        {% else %}
+                            <div class="w-full h-full flex items-center justify-center">Pas de photo</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="p-4 flex flex-col flex-grow">
+                        <h3 class="font-bold leading-tight mb-1 truncate">{{ ad.title }}</h3>
+                        <p class="text-sm mb-2 truncate">{{ ad.product.name }}</p>
+                        <p class="text-lg font-black brand-color mt-auto">{{ ad.price }} €</p>
+                        <p class="text-xs mt-2 uppercase tracking-wide">{{ ad.product.category.name }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if total_pages > 1 %}
+            <div class="flex justify-center mt-10 gap-2">
+                {% if page > 1 %}
+                <a href="?q={{ search_query }}&category={{ current_category }}&min_price={{ min_price }}&max_price={{ max_price }}&page={{ page - 1 }}" 
+                   class="px-4 py-2 border border-gray-300 bg-white rounded-lg hover:bg-gray-50 font-semibold">
+                    Précédent
+                </a>
+                {% endif %}
+
+                <span class="px-4 py-2 bg-gray-100 rounded-lg font-semibold">
+                    Page {{ page }} sur {{ total_pages }}
+                </span>
+
+                {% if page < total_pages %}
+                <a href="?q={{ search_query }}&category={{ current_category }}&min_price={{ min_price }}&max_price={{ max_price }}&page={{ page + 1 }}" 
+                   class="px-4 py-2 border border-gray-300 bg-white rounded-lg hover:bg-gray-50 font-semibold">
+                    Suivant
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </section>
+    </main>
 </body>
 </html>
