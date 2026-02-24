@@ -53,7 +53,7 @@
         <div class="space-y-12">
 
             {% set queries = [
-            ('details', 'Détail d\'une annonce', "SELECT sa.title AS annonce, p.name AS produit, c.name AS categorie,
+            ('details', 'Détail des annonces', "SELECT sa.title AS annonce, p.name AS produit, c.name AS categorie,
             sa.price, u.firstname || ' ' || u.lastname AS vendeur\nFROM sale_ad sa\nINNER JOIN product p ON
             sa.product_id = p.id\nINNER JOIN category c ON p.category_id = c.id\nINNER JOIN \"user\" u ON sa.user_id =
             u.id;"),
@@ -73,7 +73,7 @@
             {% for id, title, sql in queries %}
             <section id="{{ id }}" class="space-y-4">
                 <div class="flex justify-between items-center">
-                    <h2 class="text-[#79c0ff] font-medium text-lg">-- {{ title }}</h2>
+                    <h2 class="text-[#79c0ff] font-medium text-lg">{{ title }}</h2>
                     <a href="/sql/{{ id }}#{{ id }}"
                         class="bg-[#238636] hover:bg-[#2ea043] text-white px-5 py-1.5 rounded-md text-sm font-semibold transition">Essayer</a>
                 </div>
