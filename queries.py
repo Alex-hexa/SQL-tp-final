@@ -27,7 +27,7 @@ def get_main_search(search_q, cat_id, min_p, max_p, offset, limit):
     LIMIT {limit} OFFSET {offset}
     """
 
-# Requêtes pour le Dashboard (SANS point-virgule à la fin)
+# Requêtes pour le Dashboard
 GET_DETAILS = """
 SELECT sa.title AS annonce, p.name AS produit, c.name AS categorie, sa.price, u.firstname || ' ' || u.lastname AS vendeur
 FROM sale_ad sa

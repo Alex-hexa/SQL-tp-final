@@ -3,9 +3,8 @@ import math
 from flask import Flask, render_template, request
 from supabase import create_client, Client
 from dotenv import load_dotenv
-import queries  # Importation de ton fichier de requêtes SQL brutes
+import queries 
 
-# Chargement des variables d'environnement
 load_dotenv()
 
 app = Flask(__name__)
@@ -30,7 +29,7 @@ def index():
     offset = (page - 1) * per_page
 
     try:
-        # 1. Exécution de la recherche principale via queries.py
+        # Exécution de la recherche principale via queries.py
         sql_main = queries.get_main_search(search_query, category_id, min_price, max_price, offset, per_page)
         res = supabase.rpc('exec_sql', {'query_text': sql_main}).execute()
         
@@ -40,7 +39,7 @@ def index():
         total_count = ads[0]['total_count'] if ads else 0
         total_pages = math.ceil(total_count / per_page)
 
-        # 2. Récupération des catégories pour le filtre
+        # Récupération des catégories pour le filtre
         sql_cats = "SELECT id, name FROM category ORDER BY name"
         cats_res = supabase.rpc('exec_sql', {'query_text': sql_cats}).execute()
         categories = cats_res.data if cats_res.data else []
