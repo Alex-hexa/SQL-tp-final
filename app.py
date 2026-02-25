@@ -3,51 +3,47 @@ import math
 from flask import Flask, render_template, request
 from supabase import create_client, Client
 from dotenv import load_dotenv
+import queries  # Importation de ton fichier de requêtes SQL brutes
 
+# Chargement des variables d'environnement
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SUPABASE_KEY")
 
+# Initialisation du client Supabase
 url: str = os.environ.get("SUPABASE_URL")
-key: str = app.secret_key
+key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key)
 
 @app.route('/')
 def index():
+    """Route principale : Recherche, Filtres et Pagination en SQL brut"""
+    # Récupération des filtres depuis l'URL
     search_query = request.args.get('q', '')
     category_id = request.args.get('category', '')
     min_price = request.args.get('min_price', '')
     max_price = request.args.get('max_price', '')
     page = int(request.args.get('page', 1))
+    
     per_page = 6
+    offset = (page - 1) * per_page
 
     try:
-        query = supabase.table('sale_ad').select(
-            "id, title, price, description, picture(name), product!inner(name, category_id, category(name))", 
-            count="exact"
-        )
-
-        if search_query:
-            query = query.ilike('title', f"%{search_query}%")
-        if category_id:
-            query = query.eq('product.category_id', category_id)
-        if min_price:
-            query = query.gte('price', min_price)
-        if max_price:
-            query = query.lte('price', max_price)
-
-        start = (page - 1) * per_page
-        end = start + per_page - 1
-        query = query.range(start, end).order('id', desc=True)
-
-        res = query.execute()
-        ads = res.data
-        total_count = res.count if res.count else 0
+        # 1. Exécution de la recherche principale via queries.py
+        sql_main = queries.get_main_search(search_query, category_id, min_price, max_price, offset, per_page)
+        res = supabase.rpc('exec_sql', {'query_text': sql_main}).execute()
+        
+        ads = res.data if res.data else []
+        
+        # Récupération du total pour la pagination (inclus dans la requête via COUNT(*) OVER())
+        total_count = ads[0]['total_count'] if ads else 0
         total_pages = math.ceil(total_count / per_page)
 
-        cats_res = supabase.table('category').select('id, name').order('name').execute()
-        categories = cats_res.data
+        # 2. Récupération des catégories pour le filtre
+        sql_cats = "SELECT id, name FROM category ORDER BY name"
+        cats_res = supabase.rpc('exec_sql', {'query_text': sql_cats}).execute()
+        categories = cats_res.data if cats_res.data else []
 
         return render_template(
             'index.html', 
@@ -67,64 +63,26 @@ def index():
 @app.route('/sql')
 @app.route('/sql/<string:query_id>')
 def sql_dashboard(query_id=None):
+    """Route Admin : Exécution des requêtes SQL imposées"""
     res_data = []
     error = None
     
-    try:
-        if query_id == 'details':
-            res = supabase.table('sale_ad').select("title, price, product(name, category(name)), user(firstname, lastname)").execute()
-            for row in res.data:
-                res_data.append({
-                    'annonce': row.get('title'),
-                    'produit': row.get('product', {}).get('name') if row.get('product') else None,
-                    'categorie': row.get('product', {}).get('category', {}).get('name') if row.get('product') and row.get('product').get('category') else None,
-                    'price': row.get('price'),
-                    'vendeur': f"{row.get('user', {}).get('firstname', '')} {row.get('user', {}).get('lastname', '')}".strip()
-                })
+    # Mapping des IDs vers les constantes SQL de queries.py
+    sql_map = {
+        'details': queries.GET_DETAILS,
+        'orphelins': queries.GET_ORPHANS,
+        'count_cat': queries.GET_COUNT_BY_CAT,
+        'multi_role': queries.GET_MULTI_ROLES,
+        'ca_user': queries.GET_CA_USER
+    }
 
-        elif query_id == 'orphelins':
-            res = supabase.table('product').select("name, sale_ad(id)").execute()
-            for row in res.data:
-                if not row.get('sale_ad'):
-                    res_data.append({'produit_orphelin': row.get('name')})
-
-        elif query_id == 'count_cat':
-            res = supabase.table('category').select("name, product(sale_ad(id))").execute()
-            for row in res.data:
-                count = sum(len(p.get('sale_ad', [])) for p in row.get('product', []))
-                res_data.append({
-                    'categorie': row.get('name'),
-                    'nombre_annonces': count
-                })
-
-        elif query_id == 'multi_role':
-            res = supabase.table('user').select("firstname, lastname, user_type(type_id)").execute()
-            for row in res.data:
-                nb_roles = len(row.get('user_type', []))
-                if nb_roles > 1:
-                    res_data.append({
-                        'firstname': row.get('firstname'),
-                        'lastname': row.get('lastname'),
-                        'nb_roles': nb_roles
-                    })
-
-        elif query_id == 'ca_user':
-            res = supabase.table('user').select("firstname, lastname, sale_ad(price, command_product(command_id))").execute()
-            for row in res.data:
-                total_ca = 0
-                for ad in row.get('sale_ad', []):
-                    price = float(ad.get('price', 0))
-                    count = len(ad.get('command_product', []))
-                    total_ca += (price * count)
-                res_data.append({
-                    'firstname': row.get('firstname'),
-                    'lastname': row.get('lastname'),
-                    'chiffre_affaires': f"{total_ca:.2f}"
-                })
-            res_data = sorted(res_data, key=lambda x: float(x['chiffre_affaires']), reverse=True)
-
-    except Exception as e:
-        error = f"Erreur d'exécution : {str(e)}"
+    if query_id in sql_map:
+        try:
+            # Appel de la fonction stockée avec la requête SQL brute
+            res = supabase.rpc('exec_sql', {'query_text': sql_map[query_id]}).execute()
+            res_data = res.data if res.data else []
+        except Exception as e:
+            error = f"Erreur d'exécution SQL : {str(e)}"
         
     return render_template('sql.html', result=res_data, active_query=query_id, error=error)
 

@@ -1,34 +1,17 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interface SQL - Admin</title>
+    <title>LeMauvaisCoin - SQL Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .sql-container {
-            background-color: #1a1a1a;
-            border: 1px solid #333;
-        }
-
-        .sql-syntax {
-            color: #569cd6;
-            font-family: 'Consolas', monospace;
-        }
-
-        .sql-keyword {
-            color: #c586c0;
-            font-weight: bold;
-        }
-
-        section {
-            scroll-margin-top: 2rem;
-        }
+        .sql-container { background-color: #1a1a1a; border: 1px solid #333; }
+        .sql-syntax { color: #569cd6; font-family: 'Consolas', monospace; }
+        section { scroll-margin-top: 2rem; }
     </style>
 </head>
-
-<body class="bg-[#0d1117] text-slate-300 p-8 font-sans">
+<body class="bg-[#0d1117] text-slate-300 p-8">
 
     <div class="max-w-6xl mx-auto">
         <header class="mb-10 border-b border-slate-800 pb-4">
@@ -37,62 +20,46 @@
                     <h1 class="text-2xl font-semibold text-white">
                         <span class="text-[#ff6e14]">leMauvaisCoin</span> - SQL
                     </h1>
-                    <p class="text-xs text-slate-500 group-hover:text-indigo-400 transition">
-                        ← Retour à la navigation publique
-                    </p>
+                    <p class="text-xs text-slate-500 group-hover:text-indigo-400 transition">← Retour au site public</p>
                 </a>
             </div>
         </header>
 
         {% if error %}
-        <div class="bg-red-900 border border-red-500 text-red-100 px-4 py-3 rounded mb-6">
-            {{ error }}
-        </div>
+        <div class="bg-red-900 border border-red-500 text-red-100 px-4 py-3 rounded mb-6">{{ error }}</div>
         {% endif %}
 
         <div class="space-y-12">
-
             {% set queries = [
-            ('details', 'Détail des annonces', "SELECT sa.title AS annonce, p.name AS produit, c.name AS categorie,
-            sa.price, u.firstname || ' ' || u.lastname AS vendeur\nFROM sale_ad sa\nINNER JOIN product p ON
-            sa.product_id = p.id\nINNER JOIN category c ON p.category_id = c.id\nINNER JOIN \"user\" u ON sa.user_id =
-            u.id;"),
-            ('orphelins', 'Produits sans annonce', "SELECT p.name AS produit_orphelin\nFROM product p\nLEFT JOIN sale_ad
-            sa ON p.id = sa.product_id\nWHERE sa.id IS NULL;"),
-            ('count_cat', 'Annonces par catégorie', "SELECT c.name AS categorie, COUNT (sa.id) AS nombre_annonces\nFROM
-            category c\nJOIN product p ON c.id = p.category_id\nJOIN sale_ad sa ON p.id = sa.product_id\nGROUP BY
-            c.name;"),
-            ('multi_role', 'Utilisateurs multi-rôles', "SELECT u.firstname, u.lastname, COUNT(ut.type_id) AS
-            nb_roles\nFROM \"user\" u\nJOIN user_type ut ON u.id = ut.user_id\nGROUP BY u.id, u.firstname,
-            u.lastname\nHAVING COUNT(ut.type_id) > 1;"),
-            ('ca_user', 'Chiffre d\'Affaires (CA)', "SELECT u.firstname, u.lastname, SUM(sa.price) AS
-            chiffre_affaires\nFROM \"user\" u\nJOIN sale_ad sa ON u.id = sa.user_id\nJOIN command_product cp ON sa.id =
-            cp.sale_ad_id\nGROUP BY u.id, u.firstname, u.lastname\nORDER BY chiffre_affaires DESC;")
+                ('details', 'Détail des annonces', "SELECT sa.title AS annonce, p.name AS produit, c.name AS categorie, sa.price, u.firstname || ' ' || u.lastname AS vendeur\nFROM sale_ad sa\nINNER JOIN product p ON sa.product_id = p.id\nINNER JOIN category c ON p.category_id = c.id\nINNER JOIN \"user\" u ON sa.user_id = u.id"),
+                ('orphelins', 'Produits sans annonce', "SELECT p.name AS produit_orphelin\nFROM product p\nLEFT JOIN sale_ad sa ON p.id = sa.product_id\nWHERE sa.id IS NULL"),
+                ('count_cat', 'Annonces par catégorie', "SELECT c.name AS categorie, COUNT(sa.id) AS nombre_annonces\nFROM category c\nJOIN product p ON c.id = p.category_id\nJOIN sale_ad sa ON p.id = sa.product_id\nGROUP BY c.name"),
+                ('multi_role', 'Utilisateurs multi-rôles', "SELECT u.firstname, u.lastname, COUNT(ut.type_id) AS nb_roles\nFROM \"user\" u\nJOIN user_type ut ON u.id = ut.user_id\nGROUP BY u.id, u.firstname, u.lastname\nHAVING COUNT(ut.type_id) > 1"),
+                ('ca_user', 'Chiffre d\'Affaires (CA)', "SELECT u.firstname, u.lastname, SUM(sa.price) AS chiffre_affaires\nFROM \"user\" u\nJOIN sale_ad sa ON u.id = sa.user_id\nJOIN command_product cp ON sa.id = cp.sale_ad_id\nGROUP BY u.id, u.firstname, u.lastname\nORDER BY chiffre_affaires DESC")
             ] %}
 
             {% for id, title, sql in queries %}
             <section id="{{ id }}" class="space-y-4">
                 <div class="flex justify-between items-center">
                     <h2 class="text-[#79c0ff] font-medium text-lg">{{ title }}</h2>
-                    <a href="/sql/{{ id }}#{{ id }}"
-                        class="bg-[#238636] hover:bg-[#2ea043] text-white px-5 py-1.5 rounded-md text-sm font-semibold transition">Essayer</a>
+                    <a href="/sql/{{ id }}#{{ id }}" class="bg-[#238636] hover:bg-[#2ea043] text-white px-5 py-1.5 rounded-md text-sm font-semibold transition">Essayer</a>
                 </div>
-
+                
                 <div class="sql-container p-4 rounded-md shadow-inner overflow-x-auto">
-                    <pre class="sql-syntax whitespace-pre-wrap text-sm leading-relaxed">{{ sql }}</pre>
+                    <pre class="sql-syntax whitespace-pre-wrap text-sm">{{ sql }}</pre>
                 </div>
 
                 {% if active_query == id %}
-                <div class="mt-4 bg-[#1c1c1c] border border-[#30363d] rounded-md overflow-hidden shadow-lg">
-                    <table class="w-full text-left text-sm text-[#8b949e]">
+                <div class="mt-4 bg-[#1c1c1c] border border-[#30363d] rounded-md overflow-hidden">
+                    <table class="w-full text-left text-sm">
                         <thead class="bg-[#21262d] uppercase text-xs">
                             <tr>
                                 {% if result and result|length > 0 %}
-                                {% for key in result[0].keys() %}
-                                <th class="px-4 py-3 border-r border-[#30363d]">{{ key }}</th>
-                                {% endfor %}
+                                    {% for key in result[0].keys() %}
+                                        <th class="px-4 py-3 border-r border-[#30363d]">{{ key }}</th>
+                                    {% endfor %}
                                 {% else %}
-                                <th class="px-4 py-3">Résultat</th>
+                                    <th class="px-4 py-3">Résultat</th>
                                 {% endif %}
                             </tr>
                         </thead>
@@ -100,27 +67,17 @@
                             {% for row in result %}
                             <tr class="border-t border-[#30363d] hover:bg-[#252525] font-mono text-slate-300">
                                 {% for value in row.values() %}
-                                <td class="px-4 py-2 border-r border-[#30363d]">
-                                    {{ value if value is not none else 'NULL' }}
-                                </td>
+                                    <td class="px-4 py-2 border-r border-[#30363d]">{{ value if value is not none else 'NULL' }}</td>
                                 {% endfor %}
                             </tr>
                             {% endfor %}
-                            {% if not result %}
-                            <tr>
-                                <td class="px-4 py-4 italic text-center">Aucune donnée trouvée.</td>
-                            </tr>
-                            {% endif %}
                         </tbody>
                     </table>
                 </div>
                 {% endif %}
             </section>
             {% endfor %}
-
         </div>
     </div>
-
 </body>
-
 </html>
